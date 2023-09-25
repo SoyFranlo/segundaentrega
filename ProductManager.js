@@ -1,69 +1,75 @@
+const fs = require('fs');
+
 class ProductManager {
-  constructor() {
-    this.products = [];
-    this.nextId = 1; // Para generar IDs autoincrementables
+  constructor(filePath) {
+    this.path = filePath;
   }
 
   addProduct(product) {
-    // Validar que todos los campos sean obligatorios
-    if (!product.title || !product.description || !product.price || !product.thumbnail || !product.code || !product.stock) {
-      console.log('Error: Todos los campos son obligatorios.');
-      return;
-    }
-
-    // Validar que el código no esté repetido
-    if (this.products.some(p => p.code === product.code)) {
-      console.log('Error: El código ya existe.');
-      return;
-    }
+    const products = this.getProductsFromFile();
 
     // Asignar un ID autoincrementable al producto
-    product.id = this.nextId++;
-    this.products.push(product);
-    console.log('Producto agregado:', product);
+    product.id = this.getNextProductId(products);
+    products.push(product);
+
+    this.saveProductsToFile(products);
   }
 
   getProducts() {
-    return this.products;
+    return this.getProductsFromFile();
   }
 
   getProductById(id) {
-    const product = this.products.find(p => p.id === id);
-    if (product) {
-      return product;
-    } else {
-      console.log('Error: Producto no encontrado.');
-      return null;
+    const products = this.getProductsFromFile();
+    const product = products.find((p) => p.id === id);
+    return product || null;
+  }
+
+  updateProduct(id, updatedProduct) {
+    const products = this.getProductsFromFile();
+    const index = products.findIndex((p) => p.id === id);
+
+    if (index !== -1) {
+      updatedProduct.id = id;
+      products[index] = updatedProduct;
+      this.saveProductsToFile(products);
+      return true;
     }
+
+    return false;
+  }
+
+  deleteProduct(id) {
+    const products = this.getProductsFromFile();
+    const index = products.findIndex((p) => p.id === id);
+
+    if (index !== -1) {
+      products.splice(index, 1);
+      this.saveProductsToFile(products);
+      return true;
+    }
+
+    return false;
+  }
+
+  getNextProductId(products) {
+    const maxId = products.reduce((max, product) => (product.id > max ? product.id : max), 0);
+    return maxId + 1;
+  }
+
+  getProductsFromFile() {
+    try {
+      const data = fs.readFileSync(this.path, 'utf-8');
+      return JSON.parse(data);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  saveProductsToFile(products) {
+    fs.writeFileSync(this.path, JSON.stringify(products, null, 2), 'utf-8');
   }
 }
 
-// Ejemplo de uso:
-const productManager = new ProductManager();
+module.exports = ProductManager;
 
-productManager.addProduct({
-  title: 'Producto 1',
-  description: 'Descripción del Producto 1',
-  price: 10.99,
-  thumbnail: 'imagen1.jpg',
-  code: 'P001',
-  stock: 50,
-});
-
-productManager.addProduct({
-  title: 'Producto 2',
-  description: 'Descripción del Producto 2',
-  price: 19.99,
-  thumbnail: 'imagen2.jpg',
-  code: 'P002',
-  stock: 30,
-});
-
-console.log('Listado de productos:', productManager.getProducts());
-// Ejemplo de producto encontrado
-const productById = productManager.getProductById(2);
-if (productById) {
-  console.log('Producto encontrado por ID:', productById);
-}
-// Ejemplo de producto no encontrado
-const nonExistentProduct = productManager.getProductById(100);
